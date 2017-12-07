@@ -53,7 +53,8 @@ def tokenize(sent):
     sent=sent.lower()
     if sent=='<silence>':
         return [sent]
-    result=[x.strip() for x in re.split('(\W+)?', sent) if x.strip() and x.strip() not in stop_words]
+    # result=[x.strip() for x in re.split('(\W+)?', sent) if x.strip() and x.strip() not in stop_words]
+    result=[x.strip() for x in re.split('([^A-Za-z0-9-_]+)', sent) if x.strip() and x.strip() not in stop_words]
     if not result:
         result=['<silence>']
     if result[-1]=='.' or result[-1]=='?' or result[-1]=='!':

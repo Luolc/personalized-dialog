@@ -22,6 +22,7 @@ def zero_nil_slot(t, name=None):
         # z = tf.zeros([1, s])
         return tf.concat(0, [z, tf.slice(t, [1, 0], [-1, -1])], name=name)
 
+
 def add_gradient_noise(t, stddev=1e-3, name=None):
     """
     Adds gradient noise as described in http://arxiv.org/abs/1511.06807 [2].
@@ -38,17 +39,19 @@ def add_gradient_noise(t, stddev=1e-3, name=None):
         gn = tf.random_normal(tf.shape(t), stddev=stddev)
         return tf.add(t, gn, name=name)
 
+
 class MemN2NDialog(object):
     """End-To-End Memory Network."""
+
     def __init__(self, batch_size, vocab_size, candidates_size, sentence_size, embedding_size,
-        candidates_vec,
-        hops=3,
-        max_grad_norm=40.0,
-        nonlin=None,
-        initializer=tf.random_normal_initializer(stddev=0.1),
-        optimizer=tf.train.AdamOptimizer(learning_rate=1e-2),
-        session=tf.Session(),
-        name='MemN2N',
+                 candidates_vec,
+                 hops=3,
+                 max_grad_norm=40.0,
+                 nonlin=None,
+                 initializer=tf.random_normal_initializer(stddev=0.1),
+                 optimizer=tf.train.AdamOptimizer(learning_rate=1e-2),
+                 session=tf.Session(),
+                 name='MemN2N',
                  task_id=1):
         """Creates an End-To-End Memory Network
 
@@ -100,18 +103,17 @@ class MemN2NDialog(object):
         self._init = initializer
         self._opt = optimizer
         self._name = name
-        self._candidates=candidates_vec
+        self._candidates = candidates_vec
 
         self._build_inputs()
         self._build_vars()
-        
+
         # define summary directory
         timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-        self.root_dir = "%s_%s_%s_%s/" % ('task', str(task_id),'summary_output', timestamp)
-        
-        
+        self.root_dir = "%s_%s_%s_%s/" % ('task', str(task_id), 'summary_output', timestamp)
+
         # cross entropy
-        logits = self._inference(self._stories, self._queries) # (batch_size, candidates_size)
+        logits = self._inference(self._stories, self._queries)  # (batch_size, candidates_size)
         cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, self._answers, name="cross_entropy")
         cross_entropy_sum = tf.reduce_sum(cross_entropy, name="cross_entropy_sum")
 
@@ -120,7 +122,7 @@ class MemN2NDialog(object):
 
         # gradient pipeline
         grads_and_vars = self._opt.compute_gradients(loss_op)
-        grads_and_vars = [(tf.clip_by_norm(g, self._max_grad_norm), v) for g,v in grads_and_vars]
+        grads_and_vars = [(tf.clip_by_norm(g, self._max_grad_norm), v) for g, v in grads_and_vars]
         # grads_and_vars = [(add_gradient_noise(g), v) for g,v in grads_and_vars]
         nil_grads_and_vars = []
         for g, v in grads_and_vars:
@@ -141,14 +143,13 @@ class MemN2NDialog(object):
         self.predict_proba_op = predict_proba_op
         self.predict_log_proba_op = predict_log_proba_op
         self.train_op = train_op
-        
+
         self.graph_output = self.loss_op
 
         # init_op = tf.initialize_all_variables()
         init_op = tf.global_variables_initializer()
         self._sess = session
         self._sess.run(init_op)
-
 
     def _build_inputs(self):
         self._stories = tf.placeholder(tf.int32, [None, None, self._sentence_size], name="stories")
@@ -158,13 +159,13 @@ class MemN2NDialog(object):
     def _build_vars(self):
         with tf.variable_scope(self._name):
             nil_word_slot = tf.zeros([1, self._embedding_size])
-            A = tf.concat(0, [ nil_word_slot, self._init([self._vocab_size-1, self._embedding_size]) ])
+            A = tf.concat(0, [nil_word_slot, self._init([self._vocab_size - 1, self._embedding_size])])
             self.A = tf.Variable(A, name="A")
             self.H = tf.Variable(self._init([self._embedding_size, self._embedding_size]), name="H")
-            W = tf.concat(0, [ nil_word_slot, self._init([self._vocab_size-1, self._embedding_size]) ])
+            W = tf.concat(0, [nil_word_slot, self._init([self._vocab_size - 1, self._embedding_size])])
             self.W = tf.Variable(W, name="W")
             # self.W = tf.Variable(self._init([self._vocab_size, self._embedding_size]), name="W")
-        self._nil_vars = set([self.A.name,self.W.name])
+        self._nil_vars = {self.A.name, self.W.name}
 
     def _inference(self, stories, queries):
         with tf.variable_scope(self._name):
@@ -193,9 +194,9 @@ class MemN2NDialog(object):
                     u_k = self._nonlin(u_k)
 
                 u.append(u_k)
-            candidates_emb=tf.nn.embedding_lookup(self.W, self._candidates)
-            candidates_emb_sum=tf.reduce_sum(candidates_emb,1)
-            return tf.matmul(u_k,tf.transpose(candidates_emb_sum))
+            candidates_emb = tf.nn.embedding_lookup(self.W, self._candidates)
+            candidates_emb_sum = tf.reduce_sum(candidates_emb, 1)
+            return tf.matmul(u_k, tf.transpose(candidates_emb_sum))
             # logits=tf.matmul(u_k, self.W)
             # return tf.transpose(tf.sparse_tensor_dense_matmul(self._candidates,tf.transpose(logits)))
 
